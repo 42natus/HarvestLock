@@ -21,7 +21,7 @@ permissions:
 
 jobs:
   build:
-    name: typecheck + lint + test + build
+    name: Warehouse app / typecheck + lint + test + build
     runs-on: ubuntu-latest
     defaults:
       run:
