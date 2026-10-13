@@ -92,6 +92,7 @@ coop-pwa/        Cooperative-facing dashboard (React/Vite) — real write action
 buyer-app/       Buyer/off-taker dashboard (React/Vite) — real write actions against live testnet; ERP integration still ahead
 warehouse-app/   Warehouse-operator console (React/Vite) — mark checkpoints, confirm delivery, flag/resolve disputes, against live testnet
 docs/            PRD pointer and supporting research notes
+landing/         Landing page stitched into site apps at `/` (see Deployment)
 ```
 
 Stack rationale is in PRD §17. Short version: Rust for the contract because Soroban
