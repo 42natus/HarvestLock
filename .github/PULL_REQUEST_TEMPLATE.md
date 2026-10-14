@@ -16,3 +16,9 @@
 ## How you verified it
 
 <!-- What you actually ran -- `cargo test` output, a live testnet transaction, a browser check -- not just "should work." -->
+
+> ⚠️ **CI checks are maintainer-managed.** Do not add, remove, rename, or
+> reconfigure any CI check or workflow in this PR (including the auto-merge
+> bot). CI is part of the protocol's safety story and changes to it go
+> through the maintainers only. If you believe a check needs changing, open
+> an issue instead.

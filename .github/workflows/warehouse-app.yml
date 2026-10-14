@@ -11,17 +11,25 @@ on:
       - "warehouse-app/**"
       - ".github/workflows/warehouse-app.yml"
 
+# Explicit least-privilege token, not relying on the repo/org default
+# (currently "read" too, checked directly -- but shouldn't depend on
+# that staying true). Nothing here pushes, comments, or writes
+# anything -- checkout, typecheck, lint, test, build all only need
+# read access.
+permissions:
+  contents: read
+
 jobs:
   build:
-    name: typecheck + lint + test + build
+    name: Warehouse app / typecheck + lint + test + build
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: warehouse-app
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           # jsdom 30 (this app's vitest environment) hard-requires
           # ^22.22.2 || ^24.15.0 || >=26.0.0 (its own package.json

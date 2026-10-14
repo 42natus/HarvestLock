@@ -20,7 +20,7 @@
 [![contracts](https://github.com/Agrisettle/HarvestLock-Contracts/actions/workflows/test.yml/badge.svg)](https://github.com/Agrisettle/HarvestLock-Contracts/actions/workflows/test.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](./LICENSE)
 
-[**Live Preview**](https://agrisettle.github.io/HarvestLock/) &nbsp;·&nbsp; [**Prospectus**](./docs/PROSPECTUS.md) &nbsp;·&nbsp; [**PRD**](./docs/PRD.md) &nbsp;·&nbsp; [**Roadmap**](./ROADMAP.md)
+[**Live Preview**](https://agrisettle.github.io/HarvestLock/) &nbsp;·&nbsp; [**Demo Video**](https://github.com/Agrisettle/HarvestLock/releases/tag/demo-v1) &nbsp;·&nbsp; [**Prospectus**](./docs/PROSPECTUS.md) &nbsp;·&nbsp; [**PRD**](./docs/PRD.md) &nbsp;·&nbsp; [**Roadmap**](./ROADMAP.md)
 
 </div>
 
@@ -92,6 +92,7 @@ coop-pwa/        Cooperative-facing dashboard (React/Vite) — real write action
 buyer-app/       Buyer/off-taker dashboard (React/Vite) — real write actions against live testnet; ERP integration still ahead
 warehouse-app/   Warehouse-operator console (React/Vite) — mark checkpoints, confirm delivery, flag/resolve disputes, against live testnet
 docs/            PRD pointer and supporting research notes
+landing/         Landing page stitched into site apps at `/` (see Deployment)
 ```
 
 Stack rationale is in PRD §17. Short version: Rust for the contract because Soroban

@@ -1,0 +1,55 @@
+name: Check Lockfile Sync
+
+on:
+  pull_request:
+    paths:
+      - '**/package.json'
+      - '**/package-lock.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check-sync:
+    name: Verify package-lock.json is in sync (${{ matrix.workspace.name }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Agrisettle's HarvestLock is not an npm-workspaces monorepo: each app
+        # is an independent npm project with its own package.json +
+        # package-lock.json. The root package.json only carries meta scripts
+        # (no lockfile, no deps), so it is not in the matrix.
+        workspace:
+          - { name: api, dir: api }
+          - { name: buyer-app, dir: buyer-app }
+          - { name: coop-pwa, dir: coop-pwa }
+          - { name: site, dir: site }
+          - { name: warehouse-app, dir: warehouse-app }
+    defaults:
+      run:
+        working-directory: ${{ matrix.workspace.dir }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v4
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: ${{ matrix.workspace.dir }}/package-lock.json
+
+      - name: Check if lock file is in sync
+        run: |
+          # Install with package-lock only to detect drift, mirroring the
+          # install flag used by CI. The auto-merge bot lists every variant
+          # of this matrix check in REQUIRED_CHECKS; the merge gate treats
+          # an absent check as n/a, so that is safe for PRs that do not
+          # touch package files.
+          npm install --package-lock-only --ignore-scripts --no-audit --no-fund --legacy-peer-deps 2>&1
+          if ! git diff --quiet package-lock.json; then
+            echo "::error::package-lock.json is out of sync with package.json in ${{ matrix.workspace.dir }}. Please run 'npm install' and commit the updated lock file."
+            git diff package-lock.json
+            exit 1
+          fi
+          echo "package-lock.json is in sync."
