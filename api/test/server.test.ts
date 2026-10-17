@@ -28,8 +28,8 @@ const FAKE_PUBLIC_KEY = "GAJLI2MLTLHYPF4H2SCHQ7TJI6XHMHKIG6N5ZHONSTCKK4SWMGLDNLI
 
 let app: FastifyInstance;
 
-beforeAll(() => {
-  app = buildServer();
+beforeAll(async () => {
+  app = await buildServer();
 });
 
 afterAll(async () => {
@@ -71,6 +71,39 @@ describe("server (HTTP layer)", () => {
       const res = await app.inject({ method: "GET", url: "/commitments/not-a-real-contract-id" });
       expect(res.statusCode).toBe(400);
       expect(res.json().message).toMatch(/not a valid contract ID/);
+    },
+    15_000,
+  );
+
+  it(
+    "GET /commitments works with no query params (defaults, no 500)",
+    async () => {
+      // The exact bug this guards against: the handler used
+      // `Number(req.query.limit) ?? 20`, but Number(undefined) is NaN --
+      // never nullish -- so the fallback never applied and a bare
+      // GET /commitments sent LIMIT NaN/OFFSET NaN to Postgres, which
+      // rejected it with "invalid input syntax for type bigint" → 500.
+      // buyer-app and coop-pwa call this route with no query string at
+      // all, so that was their production list view broken.
+      const bare = await app.inject({ method: "GET", url: "/commitments" });
+      expect(bare.statusCode).toBe(200);
+      expect(Array.isArray(bare.json())).toBe(true);
+
+      // Garbage values fall back to the same defaults instead of 500ing.
+      const garbage = await app.inject({
+        method: "GET",
+        url: "/commitments?limit=abc&offset=-1",
+      });
+      expect(garbage.statusCode).toBe(200);
+      expect(Array.isArray(garbage.json())).toBe(true);
+
+      // Valid pagination still applies: limit=1 returns at most 1 row.
+      const limited = await app.inject({
+        method: "GET",
+        url: "/commitments?limit=1&offset=0",
+      });
+      expect(limited.statusCode).toBe(200);
+      expect(limited.json().length).toBeLessThanOrEqual(1);
     },
     15_000,
   );
@@ -927,5 +960,81 @@ describe("server (HTTP layer)", () => {
       expect(res.json().message).toMatch(/signerPublicKey is not a valid public key/);
     },
     15_000,
+  );
+});
+
+/**
+ * Regression coverage for the global rate limiter actually engaging.
+ * Before the fix (buildServer's `app.register(rateLimit, ...)` not being
+ * awaited — @fastify/rate-limit attaches via an `onRoute` hook that only
+ * fires for routes defined *after* the plugin body runs, and an
+ * un-awaited register defers that body until boot, i.e. after every
+ * route was already defined), the limiter silently never applied to any
+ * route: 110 rapid requests produced zero 429s and not one
+ * x-ratelimit-* header. The whole suite runs with NODE_ENV=test (which
+ * deliberately skips the limiter so the other tests' rapid-fire
+ * requests don't trip it), so proving the limiter works at all needs a
+ * second instance built with the flag flipped off.
+ */
+describe("rate limiting (limiter engages; 429 carries Retry-After)", () => {
+  let limitedApp: FastifyInstance;
+
+  beforeAll(async () => {
+    // Built here, not at file scope: only this describe block should pay
+    // the cost, and flipping NODE_ENV even briefly could affect the
+    // shared `app` if it were constructed later. Deliberately never
+    // closed — its onClose hook calls pool.end() on the process-wide
+    // pool singleton (see the file header), and the shared `app`'s
+    // afterAll owns that close. Leaving it open leaks no handles:
+    // Fastify without listen() holds no port and @fastify/rate-limit's
+    // LocalStore is a plain LRU with no timers.
+    const savedNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = "development";
+    try {
+      limitedApp = await buildServer();
+    } finally {
+      process.env.NODE_ENV = savedNodeEnv;
+    }
+  });
+
+  it(
+    "enforces the per-IP limit and answers a 429 with Retry-After",
+    async () => {
+      // The limiter keys on req.ip, and inject() always presents the
+      // same address, so every request here shares one bucket — same as
+      // a single client hammering the API from one IP.
+      const first = await limitedApp.inject({ method: "GET", url: "/health" });
+      expect(first.statusCode).toBe(200);
+      // Under the limit, the rate-limit headers are already visible —
+      // the earliest observable sign the limiter is engaged at all
+      // (pre-fix, no response ever carried these).
+      expect(first.headers["x-ratelimit-limit"]).toBe("100");
+
+      // Requests 2..100 (first consumed 1): all still allowed.
+      for (let i = 0; i < 99; i++) {
+        const res = await limitedApp.inject({ method: "GET", url: "/health" });
+        expect(res.statusCode).toBe(200);
+      }
+
+      // Request 101: over max — the 429 with its backoff header.
+      const blocked = await limitedApp.inject({ method: "GET", url: "/health" });
+      expect(blocked.statusCode).toBe(429);
+      expect(blocked.headers["x-ratelimit-remaining"]).toBe("0");
+      const retryAfter = blocked.headers["retry-after"];
+      expect(retryAfter).toBeDefined();
+      // Whole seconds remaining in the window, not a fixed constant —
+      // observed counting down in real time against a live server.
+      expect(Number(retryAfter)).toBeGreaterThan(0);
+      expect(Number(retryAfter)).toBeLessThanOrEqual(60);
+      // Same {statusCode, error, message} shape setErrorHandler
+      // reproduces for every other error — the limiter's thrown error
+      // passes through that handler's generic branch.
+      expect(blocked.json()).toEqual({
+        statusCode: 429,
+        error: "Too Many Requests",
+        message: expect.stringMatching(/^Rate limit exceeded/),
+      });
+    },
+    30_000,
   );
 });

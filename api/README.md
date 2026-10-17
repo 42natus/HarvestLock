@@ -309,6 +309,67 @@ other deadline-triggered function (`settle`, `expire_remainder_window`,
 detail, including a documented, deliberate limitation: freezing `status`
 doesn't pause any other deadline already ticking on the commitment.
 
+## Rate limiting — and what a 429 actually looks like (for frontends/backoff)
+
+Every route is rate-limited globally, per client IP: **100 requests per
+rolling minute** (`@fastify/rate-limit`, registered in `src/server.ts`;
+skipped under `NODE_ENV=test` so test suites' rapid-fire requests don't
+trip it). This section documents the *observed* wire behavior — verified
+by running the server and bursting past the limit with `curl`, not read
+off the plugin's docs — because three frontends poll this API and need to
+back off correctly instead of hammering it.
+
+**Yes, a 429 carries `Retry-After`.** A request past the limit gets:
+
+```
+HTTP/1.1 429 Too Many Requests
+x-ratelimit-limit: 100
+x-ratelimit-remaining: 0
+x-ratelimit-reset: 60
+retry-after: 60
+content-type: application/json; charset=utf-8
+
+{"statusCode":429,"error":"Too Many Requests","message":"Rate limit exceeded, retry in 1 minute"}
+```
+
+What a client should key off:
+
+- **`retry-after`** — whole **seconds remaining in the current window**,
+  recomputed per response and observed counting down in real time (e.g.
+  8, then 3 five seconds later). It is not a fixed constant and not a
+  "cooldown from now" — it's time until this client's window resets, so
+  sleep that long and then retry. Once the window expires, the very next
+  request succeeds with a fresh budget (observed: 200 with
+  `x-ratelimit-remaining: 99` immediately after expiry).
+- **`x-ratelimit-remaining` / `x-ratelimit-reset`** — also present on
+  *successful* responses (`x-ratelimit-remaining` counts down from 99),
+  so a well-behaved client can throttle proactively *before* ever
+  hitting a 429 rather than discovering the limit the hard way.
+- **The 429 body** is the same `{statusCode, error, message}` shape as
+  every other error in this API (see `setErrorHandler` in
+  `src/server.ts`) — no special-casing needed on the parse path.
+- **The limit is per client IP, shared across all routes** — it is not
+  per endpoint and not per frontend. A single frontend driving a
+  multi-step build/sign/submit flow plus the 10-second proposal-state
+  poll fits comfortably inside 100/min; three frontends from the same
+  NAT'd egress IP share one budget, which is the realistic case to
+  design backoff around. Don't retry a 429 immediately or on a fixed
+  short interval — wait the advertised `retry-after` (jitter optional
+  but harmless).
+
+One historical footnote worth knowing, since it's why this section
+exists: the limiter registration in `src/server.ts` used **not** to be
+awaited, and `@fastify/rate-limit` attaches itself via an `onRoute`
+hook, which Fastify only fires for routes defined *after* the plugin
+body runs — an un-awaited `app.register()` defers that body until boot,
+i.e. after every route was already defined. The practical result was
+that the limiter silently never engaged on any route: bursts well past
+100 requests produced no 429 and not a single `x-ratelimit-*` header.
+Registration is now awaited (`await app.register(rateLimit, ...)`), and
+`test/server.test.ts` carries a regression test that builds an instance
+with the limiter enabled and asserts the 429 + `retry-after` behavior
+above, so this can't quietly break again.
+
 ## Setup
 
 ```
