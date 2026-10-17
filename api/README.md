@@ -141,6 +141,10 @@ the system. `GET /parties/:address/standing` exposes the read side.
 
 ## Endpoints, as of this writing
 
+The OpenAPI 3.1 description is in [`openapi.yaml`](./openapi.yaml). It is
+checked against the route registrations in `src/server.ts`; update it in
+the same change whenever an endpoint or request/response shape changes.
+
 | Method | Path | What it does |
 |---|---|---|
 | GET | `/health` | Liveness check. |
