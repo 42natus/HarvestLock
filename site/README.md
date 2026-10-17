@@ -10,6 +10,35 @@ Design system: dark-first, `Fraunces` (display) + `Inter` (body) +
 from [`BRANDING.md`](https://github.com/Agrisettle/.github/blob/main/BRANDING.md)
 in the org profile repo.
 
+### Color contrast
+
+The site follows `prefers-color-scheme`: dark remains the default, and the
+light palette is selected when the operating system requests light mode. Both
+`index.html` and `roles.html` provide matching browser theme colors. Shared
+tokens also cover the standalone roles page, navigation, badges, buttons,
+focus rings, and severity labels.
+
+Before this change, the page stayed dark under both system preferences, and
+the immediate-severity red (`#c1432e`) on the dark page background
+(`#0b120f`) measured **3.71:1**, below WCAG AA's 4.5:1 threshold for normal
+text. The faint text color (`#8a897f`) measured 5.39:1 on that background.
+After the change, the red is lightened in dark mode, a separate darker red is
+used in light mode, and all text/accent token pairs checked by the contrast
+script exceed 4.5:1. Representative minimum pairs are:
+
+| System preference | Text / background | Contrast |
+| --- | --- | ---: |
+| Dark | faint text `#8a897f` / page `#0b120f` | 5.39:1 |
+| Dark | severity `#f07a63` / page `#0b120f` | 6.92:1 |
+| Light | faint text `#59645d` / page `#f7f6f0` | 5.69:1 |
+| Light | severity `#a82f1f` / page `#f7f6f0` | 6.27:1 |
+| Dark | pine text `#6fbf9d` / badge `#163f30` | 5.38:1 |
+| Light | pine text `#1e6b4e` / badge `#e2eee7` | 5.39:1 |
+
+Run `npm run check:contrast` from this directory to recalculate the key
+foreground/background token pairs in both palettes. It is a palette check;
+it does not inspect rendered pixels or replace a browser-based page audit.
+
 ## Running it
 
 ```bash
