@@ -49,6 +49,30 @@ function requireValidPublicKey(publicKey: string, fieldName: string): void {
 }
 
 /**
+ * CORS is a browser permission boundary, not API authentication. Require
+ * deployments to name each frontend origin explicitly; an unset value
+ * disables cross-origin access until a real frontend origin is known.
+ */
+function configuredCorsOrigins(): string[] | false {
+  const configured = process.env.CORS_ORIGINS?.trim();
+  if (!configured) return false;
+
+  const origins = configured.split(",").map((origin) => origin.trim());
+  for (const origin of origins) {
+    let parsed: URL;
+    try {
+      parsed = new URL(origin);
+    } catch {
+      throw new Error(`CORS_ORIGINS must contain exact HTTP(S) origins; invalid origin: ${origin}`);
+    }
+    if ((parsed.protocol !== "http:" && parsed.protocol !== "https:") || parsed.origin !== origin) {
+      throw new Error(`CORS_ORIGINS must contain exact HTTP(S) origins without paths: ${origin}`);
+    }
+  }
+  return origins;
+}
+
+/**
  * Blocks a barred address from appearing on a new commitment — the
  * enforcement half of the off-chain reputation system (see
  * src/reputation.ts and src/db/reputation.ts). Only called for `buyer`
@@ -216,11 +240,11 @@ interface InitializeBody {
 export async function buildServer() {
   const app = Fastify({ logger: true });
 
-  // Reflects the request origin rather than a fixed list — acceptable for
-  // now since there's no auth/session model yet (MVP framing, PRD §17) and
-  // every response here is public read data or a party-signed write the
-  // contract itself gates via require_auth. Revisit once that changes.
-  app.register(cors, { origin: true });
+  // Never reflect arbitrary Origin headers. Set CORS_ORIGINS to a comma-
+  // separated list of exact frontend origins once deployment domains are
+  // known; until then browser cross-origin access stays disabled. CORS is
+  // not authentication: transaction writes still rely on contract auth.
+  app.register(cors, { origin: configuredCorsOrigins() });
 
   // Global, per-IP -- audit finding, 9 Sept 2026: nothing bounded request
   // volume at all before this. 100 requests/minute is an engineering

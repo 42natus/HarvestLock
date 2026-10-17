@@ -309,6 +309,18 @@ other deadline-triggered function (`settle`, `expire_remainder_window`,
 detail, including a documented, deliberate limitation: freezing `status`
 doesn't pause any other deadline already ticking on the commitment.
 
+## CORS
+
+The API does not reflect arbitrary browser `Origin` headers. Set
+`CORS_ORIGINS` to a comma-separated list of exact origins (scheme, host,
+and optional port; no paths or wildcards) when the frontend deployment
+domains are known. Until then, cross-origin browser access is disabled;
+same-origin requests and non-browser clients are unaffected. Local Vite
+development can opt in with an origin such as `http://localhost:5173`.
+
+CORS only controls whether browsers expose responses to scripts. It is not
+authentication or a substitute for the contract's signature checks.
+
 ## Rate limiting — and what a 429 actually looks like (for frontends/backoff)
 
 Every route is rate-limited globally, per client IP: **100 requests per

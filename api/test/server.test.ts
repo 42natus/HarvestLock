@@ -29,7 +29,14 @@ const FAKE_PUBLIC_KEY = "GAJLI2MLTLHYPF4H2SCHQ7TJI6XHMHKIG6N5ZHONSTCKK4SWMGLDNLI
 let app: FastifyInstance;
 
 beforeAll(async () => {
-  app = await buildServer();
+  const configuredOrigins = process.env.CORS_ORIGINS;
+  process.env.CORS_ORIGINS = "http://example.test";
+  try {
+    app = await buildServer();
+  } finally {
+    if (configuredOrigins === undefined) delete process.env.CORS_ORIGINS;
+    else process.env.CORS_ORIGINS = configuredOrigins;
+  }
 });
 
 afterAll(async () => {
@@ -48,7 +55,7 @@ describe("server (HTTP layer)", () => {
   );
 
   it(
-    "sends CORS headers for a cross-origin request",
+    "allows only configured CORS origins",
     async () => {
       const res = await app.inject({
         method: "GET",
@@ -56,6 +63,13 @@ describe("server (HTTP layer)", () => {
         headers: { origin: "http://example.test" },
       });
       expect(res.headers["access-control-allow-origin"]).toBe("http://example.test");
+
+      const unlisted = await app.inject({
+        method: "GET",
+        url: "/health",
+        headers: { origin: "https://untrusted.example" },
+      });
+      expect(unlisted.headers["access-control-allow-origin"]).toBeUndefined();
     },
     15_000,
   );
