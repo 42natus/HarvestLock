@@ -19,6 +19,10 @@ npm run build     # production build to dist/
 npm run preview   # serve the production build locally
 ```
 
+Static hosts receive `public/404.html` in the built `dist/` directory. It
+replaces the generic host/Vite not-found response with a branded explanation
+and links back to the site and repository.
+
 ## Notes for whoever touches this next
 
 - The page metadata describes HarvestLock as a **testnet prototype**. The
