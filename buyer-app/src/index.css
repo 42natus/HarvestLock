@@ -457,3 +457,11 @@ table.tranches th {
   padding: 32px 0;
   text-align: center;
 }
+
+.build-info {
+  text-align: center;
+  padding: 1rem;
+  font-size: 0.75rem;
+  opacity: 0.5;
+  font-family: monospace;
+}

@@ -228,6 +228,9 @@ export default function App() {
           {!listError && !listLoading && <CommitmentList commitments={commitments} onSelect={loadDetail} />}
         </section>
       </main>
+      {import.meta.env.VITE_BUILD_SHA && (
+        <footer className="build-info">build {import.meta.env.VITE_BUILD_SHA}</footer>
+      )}
     </>
   );
 }
