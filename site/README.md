@@ -21,6 +21,14 @@ npm run preview   # serve the production build locally
 
 ## Notes for whoever touches this next
 
+- The page metadata describes HarvestLock as a **testnet prototype**. The
+  reference contract is live on Stellar testnet, but there is no production
+  pilot or mainnet deployment yet. Both pages use the shared branded OG image;
+  its “Stellar testnet — live” label reflects that status, and its alt text
+  describes the prototype rather than implying a live production service.
+  The roles page describes proposed responsibilities and suggested processes,
+  not binding product policy.
+
 - Scroll-reveal (`src/hooks/useInView.ts`) uses `IntersectionObserver`.
   **If you're testing scroll behavior with a headless browser, use real
   wheel events** (`page.mouse.wheel()` in Playwright), not
