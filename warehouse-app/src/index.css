@@ -417,3 +417,11 @@ table.tranches th {
   font-size: 1.05rem;
   color: var(--gold-bright);
 }
+
+.build-info {
+  text-align: center;
+  padding: 1rem;
+  font-size: 0.75rem;
+  opacity: 0.5;
+  font-family: monospace;
+}

@@ -88,8 +88,9 @@ export function getCommitment(contractId: string): Promise<CommitmentDetail> {
 }
 
 /** Postgres-cached list — the only way to enumerate commitments, since the chain has no such query. */
-export function listCommitments(): Promise<CommitmentSummary[]> {
-  return get<CommitmentSummary[]>("/commitments");
+export function listCommitments(page?: { limit: number; offset: number }): Promise<CommitmentSummary[]> {
+  const query = page ? `?limit=${page.limit}&offset=${page.offset}` : "";
+  return get<CommitmentSummary[]>(`/commitments${query}`);
 }
 
 /** Builds unsigned XDR for a no-argument lifecycle method. This app only

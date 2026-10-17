@@ -182,7 +182,11 @@ export default function App() {
             </button>
           </div>
         )}
+        </section>
       </main>
+      {import.meta.env.VITE_BUILD_SHA && (
+        <footer className="build-info">build {import.meta.env.VITE_BUILD_SHA}</footer>
+      )}
     </>
   );
 }
