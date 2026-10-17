@@ -213,7 +213,7 @@ interface InitializeBody {
   sourcePublicKey: string;
 }
 
-export function buildServer() {
+export async function buildServer() {
   const app = Fastify({ logger: true });
 
   // Reflects the request origin rather than a fixed list — acceptable for
@@ -232,8 +232,22 @@ export function buildServer() {
   // observe against. Skipped entirely in tests (`NODE_ENV=test`) so the
   // existing suites' many rapid-fire requests against one shared `app`
   // instance don't start tripping it.
+  //
+  // The `await` on register() is load-bearing, not decoration:
+  // @fastify/rate-limit attaches itself via an `onRoute` hook (see its
+  // index.js), and Fastify runs onRoute hooks synchronously at
+  // route-definition time. An un-awaited app.register() defers the
+  // plugin body until boot -- i.e. after every route below was already
+  // defined -- so the hook saw zero routes and the limiter silently
+  // never engaged: verified pre-fix that 110 rapid requests produced no
+  // 429 and not a single x-ratelimit-* header on any response. This is
+  // also why the plugin's own README always shows
+  // `await fastify.register(...)`. A 429 from this limiter does carry
+  // `Retry-After` (seconds remaining in the window) -- observed and
+  // documented in api/README.md's "Rate limiting" section, which is
+  // what the three frontends' backoff logic should key off.
   if (process.env.NODE_ENV !== "test") {
-    app.register(rateLimit, { max: 100, timeWindow: "1 minute" });
+    await app.register(rateLimit, { max: 100, timeWindow: "1 minute" });
   }
 
   // Explicit, not left to Fastify's own default handler (audit finding,
@@ -913,9 +927,18 @@ export function buildServer() {
     return serializeCommitment(commitment);
   });
 
-  app.get("/commitments", async (req, reply) => {
-  const limit = Number(req.query.limit) ?? 20;
-  const offset = Number(req.query.offset) ?? 0;
+  app.get<{ Querystring: { limit?: string; offset?: string } }>("/commitments", async (req, reply) => {
+  // Number(undefined) and Number("abc") are both NaN -- never nullish --
+  // so the previous `Number(req.query.limit) ?? 20` never fell back: a
+  // bare GET /commitments sent LIMIT NaN to Postgres and 500'd with
+  // "invalid input syntax for type bigint". That's the exact call
+  // buyer-app/coop-pwa make (no query string at all), so the list route
+  // was broken for them. Non-finite or out-of-range values now fall back
+  // to the documented defaults instead of reaching the driver.
+  const parsedLimit = Number(req.query.limit);
+  const parsedOffset = Number(req.query.offset);
+  const limit = Number.isFinite(parsedLimit) && parsedLimit > 0 ? Math.floor(parsedLimit) : 20;
+  const offset = Number.isFinite(parsedOffset) && parsedOffset >= 0 ? Math.floor(parsedOffset) : 0;
   const commitments = await listCommitments({ limit, offset });
   return reply.send(commitments);
 });
