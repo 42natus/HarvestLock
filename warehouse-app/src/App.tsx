@@ -16,6 +16,8 @@ export default function App() {
   const [commitments, setCommitments] = useState<CommitmentSummary[]>([]);
   const [listError, setListError] = useState<string | null>(null);
   const [listLoading, setListLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
 
   const [lookupInput, setLookupInput] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -29,10 +31,16 @@ export default function App() {
   const [actionError, setActionError] = useState<string | null>(null);
 
   const refreshList = useCallback(() => {
+    setPage(1);
+    setCommitments([]);
+    setHasMore(true);
     setListLoading(true);
     setListError(null);
-    listCommitments()
-      .then(setCommitments)
+    listCommitments({ limit: 20, offset: (page - 1) * 20 })
+      .then(newCommitments => {
+        setCommitments(newCommitments);
+        setHasMore(newCommitments.length === 20);
+      })
       .catch((err: unknown) => setListError(err instanceof Error ? err.message : String(err)))
       .finally(() => setListLoading(false));
   }, []);
@@ -167,7 +175,13 @@ export default function App() {
           </div>
           {listError && <div className="error-banner">{listError}</div>}
           {!listError && !listLoading && <CommitmentList commitments={commitments} onSelect={loadDetail} />}
-        </section>
+        {hasMore && (
+          <div className="load-more-container" style={{ marginTop: 16, textAlign: "center" }}>
+            <button className="load-more-button" onClick={refreshList} disabled={listLoading}>
+              {listLoading ? "Loading…" : "Load More"}
+            </button>
+          </div>
+        )}
       </main>
       {import.meta.env.VITE_BUILD_SHA && (
         <footer className="build-info">build {import.meta.env.VITE_BUILD_SHA}</footer>
