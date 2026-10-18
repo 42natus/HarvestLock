@@ -130,22 +130,24 @@ export function CommitmentDetail({
         </div>
       </dl>
 
-      <table className="tranches">
-        <thead>
-          <tr>
-            <th>Grade</th>
-            <th>Price multiplier</th>
-          </tr>
-        </thead>
-        <tbody>
-          {commitment.grade_price_bps.map((bps, i) => (
-            <tr key={i}>
-              <td>Grade {i}</td>
-              <td>{formatBps(bps)}</td>
+      <div className="tranches-scroll" role="region" aria-label="Grade price schedule" tabIndex={0}>
+        <table className="tranches">
+          <thead>
+            <tr>
+              <th>Grade</th>
+              <th>Price multiplier</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {commitment.grade_price_bps.map((bps, i) => (
+              <tr key={i}>
+                <td>Grade {i}</td>
+                <td>{formatBps(bps)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
