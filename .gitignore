@@ -8,6 +8,7 @@ node_modules/
 dist/
 gh-pages-dist/
 build/
+storybook-static/
 .env
 .env.*
 !.env.example
